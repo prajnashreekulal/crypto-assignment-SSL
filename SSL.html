@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SSL Implementation Demo</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg-1: #dbe9ff;
+      --bg-2: #f9faff;
+      --brand-600: #004aad;
+      --brand-500: #023e8a;
+      --accent: #0077b6;
+      --danger: #b00020;
+      --muted: #6b7280;
+      --card-bg: #ffffff;
+      --box-bg: #e9f2ff;
+      --radius: 12px;
+      --max-width: 1100px;
+      --text-dark: #051937;
+      --text-muted: #475569;
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body { font-family: 'Poppins', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; background: linear-gradient(135deg,var(--bg-1),var(--bg-2)); color: #07132a; -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; }
+
+    .wrap{max-width:var(--max-width);margin:18px auto;padding:0 18px}
+
+    header { background: linear-gradient(90deg,var(--brand-600),var(--brand-500)); color: white; padding: 24px 18px; border-radius: 12px; text-align: center; font-size: 22px; font-weight:700; box-shadow: 0 8px 30px rgba(3,37,76,0.12); }
+
+    /* Responsive nav */
+    nav{background:transparent;margin-top:12px;display:flex;align-items:center;justify-content:center;position:relative}
+    nav .nav-links{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+    nav a{display:inline-block;color:white;background:linear-gradient(90deg,var(--brand-500),var(--brand-600));padding:10px 14px;border-radius:8px;text-decoration:none;font-weight:600;transition:transform .12s ease,opacity .12s ease}
+    nav a:hover{transform:translateY(-3px);opacity:.95}
+
+    .nav-toggle{display:none;background:transparent;border:2px solid rgba(255,255,255,0.12);color:white;padding:8px 10px;border-radius:8px;font-size:18px;cursor:pointer}
+
+    section { padding: 28px 6px; display: none; animation: fadeIn 0.45s ease; }
+    section.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+    h2 { color: var(--brand-600); margin-bottom: 12px; font-size:20px }
+    ul, ol { margin-left: 20px; color:var(--text-dark) }
+    .text-dark { color: var(--text-dark) }
+    .text-muted { color: var(--text-muted) }
+
+    .simulation-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px;margin-top:10px}
+    .simulation-box { background: var(--box-bg); padding: 18px; border-radius: var(--radius); box-shadow: 0 8px 24px rgba(11,35,73,0.06); }
+    .simulation-box input, .simulation-box button, textarea { padding: 10px; margin-top: 8px; border: 1px solid #d1d5db; border-radius: 8px; width: 100%; font-size: 15px; }
+    .simulation-box button { background: linear-gradient(90deg,var(--brand-600),var(--brand-500)); color: white; border: none; font-weight:600; cursor: pointer; transition:transform .12s ease,filter .12s ease }
+    .simulation-box button:hover{transform:translateY(-3px);filter:brightness(.98)}
+
+    .output { background: var(--card-bg); padding: 14px; margin-top: 12px; border-radius: 10px; border-left: 4px solid var(--brand-600); display: none; line-height: 1.7; box-shadow: 0 6px 18px rgba(12,40,80,0.04)}
+    .step { background: rgba(14,72,166,0.05); margin-top: 8px; padding: 10px 12px; border-radius: 8px; color: var(--text-dark); }
+    .highlight { color: var(--brand-600); font-weight: 600; }
+
+    footer { text-align: center; background: linear-gradient(90deg,var(--brand-600),var(--brand-500)); color: white; padding: 14px; margin-top: 28px; border-radius: 10px; }
+    button[type="submit"] { background: linear-gradient(90deg,var(--brand-600),var(--brand-500)); color: white; padding: 10px 15px; border: none; border-radius: 8px; margin-top: 10px; cursor: pointer; }
+    button[type="submit"]:hover { filter:brightness(.98) }
+
+    .clear-btn{margin-left:10px;background:var(--danger);border:none;color:white;padding:10px 12px;border-radius:8px}
+    .persistence-note{margin-top:8px;font-size:13px;color:var(--muted)}
+
+    /* small screens */
+    @media (max-width: 900px){
+      .simulation-grid{grid-template-columns:1fr}
+      nav a{padding:10px 12px}
+    }
+
+    @media (max-width:720px){
+      .wrap{padding:0 14px}
+      header{font-size:18px}
+      nav{justify-content:flex-end}
+      .nav-toggle{display:inline-flex;align-items:center;gap:8px}
+      nav .nav-links{position:absolute;top:100%;left:0;right:0;background:linear-gradient(180deg,var(--brand-600),var(--brand-500));flex-direction:column;padding:12px;border-radius:10px;margin-top:8px;display:none}
+      nav.open .nav-links{display:flex}
+      nav a{background:transparent;color:white;padding:10px;border-radius:6px}
+    }
+
+    @media (max-width:420px){
+      header{font-size:16px;padding:16px}
+      .simulation-box{padding:14px}
+      .nav-toggle{padding:8px}
+      nav a{font-size:14px}
+    }
+    .clear-btn { margin-left: 10px; background: #b00020; }
+    .persistence-note { margin-top: 8px; font-size: 13px; color: #333; }
+
+    /* Presentation polish */
+  .hero{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:22px;border-radius:12px;margin-top:16px;background:linear-gradient(90deg,rgba(255,255,255,0.25),rgba(255,255,255,0.12));-webkit-backdrop-filter: blur(4px);backdrop-filter: blur(4px);box-shadow:0 12px 36px rgba(3,37,76,0.08)}
+    .hero .left{flex:1}
+    .hero h1{margin:0;font-size:20px;color:#031028}
+    .hero p{margin-top:8px;color:var(--muted);line-height:1.4}
+    .hero .cta{display:flex;gap:12px;margin-top:12px}
+    .btn-cta{padding:12px 16px;border-radius:10px;border:none;cursor:pointer;font-weight:700;background:linear-gradient(90deg,var(--brand-600),var(--accent));color:white;box-shadow:0 8px 24px rgba(2,48,102,0.12);transition:transform .14s ease,box-shadow .14s ease}
+    .btn-ghost{background:transparent;border:1px solid rgba(3,37,76,0.08);color:var(--brand-600);font-weight:600}
+    .btn-cta:hover{transform:translateY(-4px);box-shadow:0 18px 36px rgba(2,48,102,0.16)}
+
+    /* Make each page section look like a card for presentation */
+    section{background:var(--card-bg);border-radius:12px;padding:24px;margin-top:18px;box-shadow:0 10px 26px rgba(11,35,73,0.06)}
+    section#simulation{background:transparent;padding:0;box-shadow:none}
+    section#simulation .simulation-grid{margin-top:8px}
+
+    /* subtle badges */
+    .badge{display:inline-block;padding:6px 10px;background:linear-gradient(90deg,var(--accent),var(--brand-500));color:white;border-radius:999px;font-weight:700;font-size:13px}
+
+    /* subtle entrance */
+    .fade-up{transform:translateY(6px);opacity:0;animation:fadeUp .6s ease forwards}
+    @keyframes fadeUp{to{transform:none;opacity:1}}
+  /* Objective box styling */
+  .objective-box{background:linear-gradient(180deg,rgba(2,48,102,0.03),rgba(255,255,255,0.9));border-left:6px solid var(--brand-500);padding:16px;border-radius:10px;color:var(--text-dark);box-shadow:0 8px 20px rgba(2,48,102,0.04)}
+  .objective-box p{margin:8px 0;font-size:15px}
+  .objective-list{margin-top:10px;display:grid;gap:8px;padding-left:0}
+  .objective-list li{list-style:none;background:rgba(2,48,102,0.03);padding:12px;border-radius:8px;color:var(--text-dark);font-size:14px}
+  /* Aim box styling */
+  .aim-box{background:linear-gradient(180deg,rgba(0,74,173,0.04),rgba(255,255,255,0.8));border-left:6px solid var(--accent);padding:14px;border-radius:10px;color:var(--text-dark);box-shadow:0 8px 20px rgba(2,48,102,0.04)}
+  .aim-box p{margin:8px 0;font-size:15px}
+  .aim-list{margin-top:10px;display:grid;gap:8px;padding-left:0}
+  .aim-list li{list-style:none;background:rgba(0,74,173,0.03);padding:10px;border-radius:8px;color:var(--text-dark)}
+  </style>
+</head>
+
+<body>
+  <header>💻 Implementation of Secure Socket Layer (SSL) – Interactive Demo</header>
+
+  <div class="wrap">
+    <nav>
+      <button class="nav-toggle" aria-label="Toggle navigation" onclick="toggleNav()">☰</button>
+      <div class="nav-links">
+        <a href="#home" onclick="showSection('home')">Home</a>
+        <a href="#aim" onclick="showSection('aim')">Aim</a>
+        <a href="#theory" onclick="showSection('theory')">Theory</a>
+        <a href="#objective" onclick="showSection('objective')">Objective</a>
+        <a href="#procedure" onclick="showSection('procedure')">Procedure</a>
+        <a href="#simulation" onclick="showSection('simulation')">Simulation</a>
+        <a href="#reference" onclick="showSection('reference')">Reference</a>
+        <a href="#feedback" onclick="showSection('feedback')">Feedback</a>
+      </div>
+    </nav>
+
+  <!-- HOME -->
+  <section id="home" class="active">
+    <h2>Home</h2>
+    <p>Welcome to the <b>Secure Socket Layer (SSL) Implementation Demo</b> — an interactive learning page that walks you through the concepts, handshake steps, cryptographic primitives, and a small in-browser simulation of secure communication between a <b>client</b> and a <b>server</b>.</p>
+    <p>This page is aimed at students and developers who want a visual, hands-on way to understand how TLS/SSL works under the hood. It intentionally simplifies some cryptographic operations for clarity (for example, using base64 to represent encryption), and highlights how authentication and key exchange protect integrity and confidentiality.</p>
+    <p>Use the navigation above to jump to any topic. Try the simulation to practice a handshake, register clients, send messages, view stored messages, and clear them from the mock server.</p>
+  </section>
+
+  <!-- AIM -->
+  <section id="aim">
+    <h2>Aim</h2>
+    <div class="aim-box">
+      <p><strong>Understand</strong> how TLS/SSL protocols ensure data confidentiality, integrity, and authentication during secure communication.</p>
+      <p><strong>Demonstrate</strong> the complete TLS/SSL handshake process step-by-step, explaining the roles of digital certificates, public/private key pairs, and session key generation.</p>
+      <p><strong>Provide</strong> an interactive simulation where participants can:</p>
+      <ul class="aim-list">
+        <li>Perform a mock TLS handshake between a client and a server.</li>
+        <li>Encrypt and decrypt messages using generated session keys.</li>
+        <li>Observe how encrypted data is transmitted and securely stored on a simulated server.</li>
+        <li>Promote secure development practices by identifying the correct cryptographic primitives and configurations to use in real-world applications.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- THEORY -->
+  <section id="theory">
+    <h2>Theory</h2>
+    <p><b>SSL (Secure Socket Layer)</b> and its successor <b>TLS (Transport Layer Security)</b> are protocols that secure communications over networks. They combine asymmetric cryptography for authentication and key exchange with symmetric cryptography for efficient bulk encryption.</p>
+
+    <h3>Core concepts</h3>
+    <ul>
+      <li><b>Authentication:</b> The server (and optionally the client) proves its identity using X.509 certificates signed by Certificate Authorities (CAs).</li>
+      <li><b>Confidentiality:</b> Once a shared session key is agreed, symmetric encryption (e.g., AES) provides confidentiality of payloads.</li>
+      <li><b>Integrity:</b> Message Authentication Codes (MACs) or AEAD (e.g., AES-GCM) ensure messages are not tampered with in transit.</li>
+      <li><b>Key Exchange:</b> Algorithms like ECDHE or RSA let parties agree on session keys without transmitting them in the clear.</li>
+    </ul>
+
+    <h3>Handshake overview (brief)</h3>
+    <ol>
+      <li><b>ClientHello:</b> Client proposes protocol versions, cipher suites, and sends a random nonce.</li>
+      <li><b>ServerHello & Certificate:</b> Server selects parameters and sends its certificate containing the server's public key.</li>
+      <li><b>Key Exchange:</b> The client verifies the certificate, then uses the server's public key (or performs ECDHE) to derive a shared secret.</li>
+      <li><b>Finished:</b> Both sides confirm the handshake succeeded and start encrypted application-data exchange using the derived session keys.</li>
+    </ol>
+
+    <h3>Notes & simplifications in this demo</h3>
+    <ul>
+      <li>This demo uses base64 (btoa/atob) as a placeholder for encryption to keep the concepts readable. In production, use the Web Crypto API with AES-GCM or similar authenticated encryption.</li>
+      <li>Real certificates have a chain of trust and expiration dates; this demo provides a conceptual certificate step only.</li>
+    </ul>
+  </section>
+
+  <!-- OBJECTIVE -->
+  <section id="objective">
+    <h2>Objective</h2>
+    <div class="objective-box">
+      <p>The objective of this lab is to provide a clear and practical understanding of how SSL/TLS (Secure Sockets Layer / Transport Layer Security) ensures secure communication over the internet. By the end of this session, students will be able to:</p>
+      <ul class="objective-list">
+        <li><strong>Explain the SSL/TLS Handshake Process:</strong> Understand each stage of the handshake, including ClientHello, ServerHello, certificate exchange, and key generation. Describe how the client and server establish trust and negotiate encryption parameters.</li>
+        <li><strong>Differentiate Between Cryptographic Operations:</strong> Identify the use of asymmetric encryption (for authentication and key exchange) and symmetric encryption (for secure data transmission). Understand why both are essential in the TLS protocol.</li>
+        <li><strong>Perform a Mock TLS Handshake and Secure Communication:</strong> Simulate a client-server handshake in a browser-based environment. Encrypt and decrypt messages using session keys to observe how confidentiality is maintained. Visualize how the server can read data only when it possesses the correct session key.</li>
+        <li><strong>Observe and Analyze Security Properties:</strong> Explore how encryption, decryption, and message integrity protect data during transmission. Recognize how digital certificates verify server identity and prevent man-in-the-middle attacks.</li>
+        <li><strong>Adopt Best Security Practices:</strong> Learn why it’s important to use the latest TLS versions and modern AEAD ciphers (like AES-GCM or ChaCha20-Poly1305). Understand the importance of secure certificate validation and avoiding outdated or weak configurations.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- PROCEDURE -->
+  <section id="procedure">
+    <h2>Procedure</h2>
+    <p>Follow these steps to complete the lab and understand the handshake and message flow:</p>
+    <ol>
+      <li><b>ClientHello:</b> In the simulation, click <i>Start Handshake</i> to initiate the handshake and observe the messages exchanged (ClientHello, ServerHello, Certificate).</li>
+      <li><b>Verify Certificate:</b> Learn how a client verifies a server certificate's signature and validity (the demo shows the verification step conceptually).</li>
+      <li><b>Establish Session Key:</b> The client generates a premaster secret and, using the server's public key or ECDHE, creates the shared session key. Here it's visualized as a shared step called "Shared Key Creation".</li>
+      <li><b>Secure Communication:</b> After the handshake, use the <i>Part II</i> UI to register a client and send messages. The demo encodes (base64) the message to simulate encryption and stores both encrypted and decrypted forms in the mock server DB.</li>
+      <li><b>Inspect & Clean Up:</b> Use <i>View Server Messages</i> to inspect stored messages and <i>Clear Server Messages</i> to reset the mock DB between experiments.</li>
+    </ol>
+
+    <h3>Hints for experiments</h3>
+    <ul>
+      <li>Try registering multiple clients and see how messages are associated with client identities.</li>
+      <li>Refresh the page to confirm persistence, then clear the server DB and verify it's empty.</li>
+      <li>Consider modifying client names to test duplicate registration handling and observe UI feedback.</li>
+    </ul>
+  </section>
+
+  <!-- SIMULATION -->
+  <section id="simulation">
+    <h2>Simulation – SSL Secure Communication Demo</h2>
+
+    <p>This hands-on section is divided into three parts. It walks through a simplified handshake, message "encryption"/transmission, and a mock server store. The goal is conceptual clarity — it is not production crypto.</p>
+
+    <div class="simulation-grid">
+
+    <!-- PART I: Handshake -->
+    <div class="simulation-box">
+      <h3>PART I – SSL Handshake Process</h3>
+      <p>Click below to start the SSL handshake between client and server.</p>
+      <button onclick="startHandshake()">Start Handshake 🔒</button>
+      <div id="handshakeOutput" class="output"></div>
+  </div>
+
+    <!-- PART II: Message Encryption -->
+    <div class="simulation-box">
+      <h3>PART II – Message Encryption & Transmission</h3>
+      <p>Register client and enter a message to securely send from client to server.</p>
+      <input type="text" id="clientName" placeholder="Enter Client Name">
+      <button onclick="registerConnection()">Register Client 🔗</button>
+      <input type="text" id="clientMsg" placeholder="Enter your message...">
+      <button onclick="encryptMessage()">Send Securely 🔐</button>
+      <div id="connectionOutput" class="output"></div>
+      <div id="messageOutput" class="output"></div>
+    </div>
+
+    <!-- PART III: Server Database -->
+    <div class="simulation-box">
+      <h3>PART III – Mock Server Database</h3>
+      <p>View encrypted and decrypted messages stored on the server:</p>
+  <button onclick="viewServerMessages()">View Server Messages 📂</button>
+  <button onclick="clearServerMessages()" class="clear-btn">Clear Server Messages 🗑️</button>
+      <div id="serverOutput" class="output"></div>
+  <div class="persistence-note">Messages persist in your browser (localStorage). Use the Clear button to remove them.</div>
+    </div>
+  </section>
+
+  <!-- REFERENCE -->
+  <section id="reference">
+    <h2>Reference</h2>
+    <ul>
+      <li>William Stallings – Cryptography and Network Security (textbook)</li>
+      <li>RFC 5246 – The Transport Layer Security (TLS) Protocol Version 1.2 (for historical reference)</li>
+      <li>RFC 8446 – The Transport Layer Security (TLS) Protocol Version 1.3 (modern TLS specification)</li>
+      <li><a href="https://developer.mozilla.org/en-US/docs/Web/API/Web_Crypto_API" target="_blank">MDN – Web Crypto API (practical encryption in the browser)</a></li>
+      <li><a href="https://www.geeksforgeeks.org/ssl-and-tls/" target="_blank">GeeksforGeeks – SSL & TLS (tutorial)</a></li>
+      <li><a href="https://www.ssl.com/faqs/" target="_blank">SSL.com FAQs</a></li>
+    </ul>
+  </section>
+
+  <!-- FEEDBACK -->
+  <section id="feedback">
+    <h2>Feedback</h2>
+    <form onsubmit="event.preventDefault(); alert('Thank you for your feedback 💙');">
+      <input type="text" placeholder="Your Name" required>
+      <textarea rows="4" placeholder="Your Feedback" required></textarea>
+      <button type="submit">Submit Feedback</button>
+    </form>
+  </section>
+
+
+  <script>
+    // Function to show a specific section and save it to localStorage
+    function showSection(id) {
+      document.querySelectorAll("section").forEach(sec => sec.classList.remove("active"));
+      document.getElementById(id).classList.add("active");
+      // Save the current section to localStorage
+      localStorage.setItem('activeSection', id);
+      // close mobile nav if open
+      const nav = document.querySelector('nav');
+      if (nav && nav.classList.contains('open')) nav.classList.remove('open');
+    }
+
+    // Function to load the last active section
+    function loadActiveSection() {
+      const activeSection = localStorage.getItem('activeSection') || 'home';
+      showSection(activeSection);
+    }
+
+    // Call loadActiveSection when the page loads
+    window.addEventListener('load', loadActiveSection);
+
+    // ---- PART I: SSL Handshake ----
+    function startHandshake() {
+      const steps = [
+        "🔹 Client Hello: The client initiates connection requesting SSL communication.",
+        "🔹 Server Hello: The server sends its digital certificate and public key.",
+        "🔹 Certificate Verification: The client verifies server identity.",
+        "🔹 Shared Key Creation: Both sides generate a secret session key.",
+        "✅ SSL Handshake Successful — Secure Channel Established!"
+      ];
+
+      const output = document.getElementById("handshakeOutput");
+      output.style.display = "block";
+      output.innerHTML = "";
+      let i = 0;
+      const interval = setInterval(() => {
+        output.innerHTML += `<div class='step'>${steps[i]}</div>`;
+        i++;
+        if (i === steps.length) clearInterval(interval);
+      }, 1200);
+    }
+
+    // ---- PART II & III: Client Registration & Message Encryption ----
+    const serverDatabase = [];
+    const clientConnections = [];
+
+    function registerConnection() {
+      const client = document.getElementById("clientName").value.trim();
+      const output = document.getElementById("connectionOutput");
+      if (!client) { alert("Enter a client name to register!"); return; }
+      if (!clientConnections.includes(client)) {
+        clientConnections.push(client);
+        saveState();
+        output.style.display = "block";
+        output.innerHTML = `<div class='step' style='color:green;'>✅ Client '${client}' registered successfully!</div>`;
+        return;
+      }
+      output.style.display = "block";
+      output.innerHTML = `<div class='step' style='color:orange;'>⚠ Client '${client}' is already registered!</div>`;
+    }
+
+    function encryptMessage() {
+      const msg = document.getElementById("clientMsg").value.trim();
+      const client = document.getElementById("clientName").value.trim();
+      const output = document.getElementById("messageOutput");
+
+      if (!client || !clientConnections.includes(client)) {
+        alert("Please register a client connection first!");
+        return;
+      }
+      if (!msg) { alert("Please enter a message first!"); return; }
+
+      const encrypted = btoa(msg);
+      const decrypted = atob(encrypted);
+
+      serverDatabase.push({ client, encrypted, decrypted });
+      saveState();
+
+      output.style.display = "block";
+      output.innerHTML = `
+        <div class='step'>🔹 Client: ${client}</div>
+        <div class='step'>🔹 Client Message: ${msg}</div>
+        <div class='step'>🔹 Encrypted (Data Sent to Server): <b>${encrypted}</b></div>
+        <div class='step'>🔹 Server Decrypts Message: ${decrypted}</div>
+        <div class='step' style='color:green; font-weight:600;'>✅ SSL Secure Communication Completed!</div>
+      `;
+    }
+
+    function viewServerMessages() {
+      const output = document.getElementById("serverOutput");
+      if (serverDatabase.length === 0) {
+        output.style.display = "block";
+        output.innerHTML = `<div class='step'>⚠ No messages stored on server yet.</div>`;
+        return;
+      }
+      output.style.display = "block";
+      output.innerHTML = serverDatabase.map((msg, i) =>
+        `<div class='step'>
+           <b>${i + 1}.</b> Client: ${msg.client}<br>
+           Encrypted: ${msg.encrypted}<br>
+           Decrypted: ${msg.decrypted}
+         </div>`).join('');
+    }
+
+    // Mobile nav helpers
+    function toggleNav() {
+      const nav = document.querySelector('nav');
+      if (!nav) return;
+      nav.classList.toggle('open');
+    }
+
+    // ---- Persistence Helpers ----
+    function saveState() {
+      try {
+        localStorage.setItem('ssl_server_db', JSON.stringify(serverDatabase));
+        localStorage.setItem('ssl_clients', JSON.stringify(clientConnections));
+      } catch (e) {
+        console.warn('Could not save state to localStorage', e);
+      }
+    }
+
+    function loadState() {
+      try {
+        const db = JSON.parse(localStorage.getItem('ssl_server_db')) || [];
+        const clients = JSON.parse(localStorage.getItem('ssl_clients')) || [];
+        serverDatabase.splice(0, serverDatabase.length, ...db);
+        clientConnections.splice(0, clientConnections.length, ...clients);
+      } catch (e) {
+        console.warn('Could not load state from localStorage', e);
+      }
+    }
+
+    function clearServerMessages() {
+      if (!confirm('Clear all messages from the mock server database?')) return;
+      serverDatabase.length = 0;
+      saveState();
+      const output = document.getElementById('serverOutput');
+      output.style.display = 'block';
+      output.innerHTML = `<div class='step' style='color:green;'>✅ Server messages cleared.</div>`;
+    }
+
+    // Initialize state on load
+    loadState();
+  </script>
+</body>
+</html>
